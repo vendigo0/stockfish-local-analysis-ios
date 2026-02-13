@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Chess Analysis</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      id="chessboard-css"
+      rel="stylesheet"
+      href="libs/chessboard-1.0.0.min.css"
+    />
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f6fb;
+        --panel: rgba(255, 255, 255, 0.95);
+        --panel-strong: rgba(248, 249, 255, 1);
+        --text: #1b1e27;
+        --muted: #6f7a89;
+        --accent: #007aff;
+        --accent-2: #5ac8fa;
+        --good: #2ecc71;
+        --shadow: 0 20px 60px rgba(17, 24, 39, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: radial-gradient(circle at top, #ffffff 0%, #eef0f8 60%);
+        color: var(--text);
+        font-family: "Inter", system-ui, -apple-system, "SF Pro Display", sans-serif;
+      }
+
+      .app {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        padding: 28px;
+      }
+
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+      }
+
+      .title h1 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+
+      .title span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .control-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--panel);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        padding: 8px 12px;
+        border-radius: 12px;
+        box-shadow: 0 6px 16px rgba(17, 24, 39, 0.06);
+      }
+
+      .control-group label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+
+      .toggle input {
+        appearance: none;
+        width: 40px;
+        height: 22px;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.12);
+        position: relative;
+        outline: none;
+        transition: background 0.2s ease;
+      }
+
+      .toggle input::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 4px;
+        width: 16px;
+        height: 16px;
+        background: #fff;
+        border-radius: 50%;
+        transition: transform 0.2s ease;
+      }
+
+      .toggle input:checked {
+        background: linear-gradient(120deg, var(--accent), var(--accent-2));
+      }
+
+      .toggle input:checked::after {
+        transform: translateX(17px);
+      }
+
+      .button {
+        background: linear-gradient(135deg, rgba(0, 122, 255, 0.16), rgba(90, 200, 250, 0.18));
+        color: var(--text);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 12px;
+        padding: 10px 16px;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 24px rgba(0, 122, 255, 0.12);
+      }
+
+      .button.secondary {
+        background: rgba(255, 255, 255, 0.7);
+      }
+
+      .layout {
+        flex: 1;
+        display: grid;
+        grid-template-columns: minmax(240px, 1fr) auto minmax(240px, 1fr);
+        gap: 24px;
+        align-items: center;
+      }
+
+      .panel {
+        background: var(--panel);
+        border-radius: 20px;
+        padding: 16px;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        box-shadow: var(--shadow);
+      }
+
+      .board-wrap {
+        position: relative;
+        width: min(92vw, 620px);
+        aspect-ratio: 1 / 1;
+      }
+
+      #board {
+        width: 100%;
+        height: 100%;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+        touch-action: none;
+      }
+
+      .overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+
+      #arrow-layer {
+        width: 100%;
+        height: 100%;
+      }
+
+      .evaluation {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        align-items: center;
+      }
+
+      .eval-bar {
+        position: relative;
+        width: 34px;
+        height: 380px;
+        background: rgba(0, 0, 0, 0.06);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+
+      .eval-fill {
+        position: absolute;
+        bottom: 50%;
+        left: 0;
+        width: 100%;
+        height: 0%;
+        background: linear-gradient(180deg, #ffffff 0%, #cfd6e6 70%, #1b1e27 100%);
+        transition: height 0.4s ease, bottom 0.4s ease;
+      }
+
+      .eval-score {
+        font-size: 14px;
+        color: var(--muted);
+      }
+
+      .analysis h3 {
+        margin: 0;
+        font-size: 15px;
+        color: var(--muted);
+      }
+
+      .line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 12px;
+        background: var(--panel-strong);
+        border-radius: 12px;
+        border: 1px solid rgba(0, 0, 0, 0.04);
+      }
+
+      .line strong {
+        font-size: 14px;
+      }
+
+      .line span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .status {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .status strong {
+        color: var(--text);
+      }
+
+      .square-highlight {
+        box-shadow: inset 0 0 0 3px rgba(0, 122, 255, 0.6);
+      }
+
+      .square-highlight.secondary {
+        box-shadow: inset 0 0 0 3px rgba(90, 200, 250, 0.6);
+      }
+
+      .promotion-modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.2);
+        z-index: 20;
+      }
+
+      .promotion-modal.active {
+        display: flex;
+      }
+
+      .promotion-card {
+        background: #fff;
+        border-radius: 18px;
+        padding: 20px;
+        display: grid;
+        gap: 12px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        box-shadow: var(--shadow);
+      }
+
+      .promotion-options {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+      }
+
+      .promotion-options button {
+        padding: 10px;
+        border-radius: 12px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        background: rgba(248, 249, 255, 1);
+        cursor: pointer;
+      }
+
+      input[type="range"] {
+        accent-color: var(--accent);
+      }
+
+      .depth-value {
+        font-size: 12px;
+        color: var(--muted);
+        min-width: 26px;
+        text-align: center;
+      }
+
+      select {
+        background: #fff;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        padding: 6px 8px;
+        font-size: 12px;
+      }
+
+      input[type="text"] {
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        padding: 6px 8px;
+        font-size: 12px;
+        min-width: 190px;
+      }
+
+      input[disabled],
+      select[disabled] {
+        pointer-events: none;
+        opacity: 0.6;
+      }
+
+      .square-selected {
+        box-shadow: inset 0 0 0 3px rgba(0, 122, 255, 0.85);
+      }
+
+      @media (max-width: 1000px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <div class="title">
+          <h1>Chess Analysis</h1>
+          <span>Local analysis · Apple style</span>
+        </div>
+        <div class="controls">
+          <div class="control-group">
+            <label for="depth">Depth</label>
+            <input id="depth" type="range" min="8" max="20" value="14" />
+            <span class="depth-value" id="depthValue">14</span>
+          </div>
+          <div class="control-group">
+            <label class="toggle">
+              <input id="accuracyToggle" type="checkbox" />
+              Accuracy
+            </label>
+            <input id="accuracy" type="range" min="0" max="100" value="70" />
+            <span class="depth-value" id="accuracyValue">70</span>
+          </div>
+          <div class="control-group">
+            <label for="skill">Skill</label>
+            <input id="skill" type="range" min="0" max="20" value="18" />
+            <span class="depth-value" id="skillValue">18</span>
+          </div>
+          <div class="control-group">
+            <label class="toggle">
+              <input id="limitStrength" type="checkbox" />
+              Limit ELO
+            </label>
+            <input id="elo" type="range" min="800" max="2850" value="2000" />
+            <span class="depth-value" id="eloValue">2000</span>
+          </div>
+          <div class="control-group">
+            <label for="style">Style</label>
+            <select id="style">
+              <option value="passive">Passive</option>
+              <option value="normal" selected>Normal</option>
+              <option value="aggressive">Aggressive</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label class="toggle">
+              <input id="toggleArrows" type="checkbox" checked />
+              Show arrows
+            </label>
+          </div>
+          <div class="control-group">
+            <label class="toggle">
+              <input id="serverToggle" type="checkbox" />
+              Use server
+            </label>
+            <input
+              id="serverUrl"
+              type="text"
+              placeholder="http://192.168.0.10:8000"
+            />
+          </div>
+          <button class="button secondary" id="flipBoard">Flip</button>
+          <button class="button" id="undoMove">Step back</button>
+          <button class="button secondary" id="resetBoard">Reset</button>
+        </div>
+      </header>
+
+      <section class="layout">
+        <div class="panel evaluation">
+          <div class="eval-bar">
+            <div class="eval-fill" id="evalFill"></div>
+          </div>
+          <div class="eval-score" id="evalScore">0.0</div>
+        </div>
+
+        <div class="board-wrap">
+          <div id="board"></div>
+          <div class="overlay">
+            <svg id="arrow-layer"></svg>
+          </div>
+        </div>
+
+        <div class="panel analysis">
+          <h3>Engine Lines</h3>
+          <div class="moves" id="lines">
+            <div class="line">
+              <strong>Ready</strong>
+              <span>--</span>
+            </div>
+          </div>
+          <div class="status">
+            <div><strong>Best move:</strong> <span id="bestMove">--</span></div>
+            <div><strong>Evaluation:</strong> <span id="bestEval">0.0</span></div>
+            <div><strong>Accuracy:</strong> <span id="accuracyStatus">Manual</span></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="promotion-modal" id="promotionModal">
+      <div class="promotion-card">
+        <h4>Select promotion</h4>
+        <div class="promotion-options">
+          <button data-piece="q">Queen</button>
+          <button data-piece="r">Rook</button>
+          <button data-piece="b">Bishop</button>
+          <button data-piece="n">Knight</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const files = "abcdefgh";
+      const evalCap = 1200;
+
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+      const loadScript = (src) =>
+        new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = src;
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+
+      const ensureChessboardCss = () => {
+        const link = document.getElementById("chessboard-css");
+        if (link) return;
+        const fallback = document.createElement("link");
+        fallback.rel = "stylesheet";
+        fallback.href =
+          "https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css";
+        document.head.appendChild(fallback);
+      };
+
+      const ensureLibs = async () => {
+        if (!window.jQuery) {
+          try {
+            await loadScript("libs/jquery.min.js");
+          } catch (error) {
+            await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js");
+          }
+        }
+        if (!window.Chess) {
+          try {
+            await loadScript("libs/chess.min.js");
+          } catch (error) {
+            await loadScript("https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.12.1/chess.min.js");
+          }
+        }
+        if (!window.Chessboard) {
+          try {
+            await loadScript("libs/chessboard-1.0.0.min.js");
+          } catch (error) {
+            await loadScript(
+              "https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"
+            );
+            ensureChessboardCss();
+          }
+        }
+      };
+
+      const debounce = (fn, delay) => {
+        let timer;
+        return (...args) => {
+          clearTimeout(timer);
+          timer = setTimeout(() => fn(...args), delay);
+        };
+      };
+
+      const uciToSan = (fen, move) => {
+        if (!move) return "--";
+        const temp = new Chess(fen);
+        const from = move.substring(0, 2);
+        const to = move.substring(2, 4);
+        const promotion = move.substring(4, 5);
+        const result = temp.move({ from, to, promotion: promotion || undefined });
+        return result ? result.san : move;
+      };
+
+      const evalToDisplay = (score) => {
+        if (score.type === "mate") {
+          return score.value > 0 ? `#${score.value}` : `#-${Math.abs(score.value)}`;
+        }
+        const cp = score.value / 100;
+        const signed = cp >= 0 ? `+${cp.toFixed(2)}` : cp.toFixed(2);
+        return signed;
+      };
+
+      const evalToPercent = (score) => {
+        let cp = score.type === "mate" ? (score.value > 0 ? evalCap : -evalCap) : score.value;
+        cp = clamp(cp, -evalCap, evalCap);
+        return ((cp + evalCap) / (2 * evalCap)) * 100;
+      };
+
+      const pieceTheme = (piece) => {
+        const color = piece[0];
+        const type = piece[1].toLowerCase();
+        return `imgs/${color}${type}.png`;
+      };
+
+      let game = null;
+      let board = null;
+      let pendingPromotion = null;
+      let currentOrientation = "white";
+      let boardConfig = null;
+      let selectedSquare = null;
+
+      let stockfishWorker = null;
+      let engineReady = false;
+      let latestEvaluation = { type: "cp", value: 0 };
+      let multiPvLines = [];
+
+      const sendToEngine = (command) => {
+        if (!stockfishWorker) return;
+        stockfishWorker.postMessage(command);
+      };
+
+      const createStockfishWorker = async () => {
+        try {
+          return new Worker("libs/stockfish.js");
+        } catch (error) {
+          // fall through to blob worker
+        }
+        const tryFetch = async (url) => {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error("Fetch failed");
+          return response.text();
+        };
+        let code = null;
+        try {
+          code = await tryFetch("libs/stockfish.js");
+        } catch (error) {
+          if (navigator.onLine) {
+            code = await tryFetch(
+              "https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js"
+            );
+          }
+        }
+        if (!code) throw new Error("Stockfish not found");
+        const blob = new Blob([code], { type: "application/javascript" });
+        return new Worker(URL.createObjectURL(blob));
+      };
+
+      const setupStockfish = async () => {
+        try {
+          stockfishWorker = await createStockfishWorker();
+        } catch (error) {
+          setWaitingUI("Stockfish missing (place libs/stockfish.js)");
+          return;
+        }
+        stockfishWorker.onmessage = (event) => {
+          const line = event.data;
+          if (line === "readyok") {
+            engineReady = true;
+            scheduleAnalysis();
+            return;
+          }
+          if (!line.startsWith("info")) {
+            if (line.startsWith("bestmove")) {
+              const bestMove = line.split(" ")[1];
+              updateBestMove(bestMove);
+            }
+            return;
+          }
+
+          if (line.includes(" multipv ")) {
+            const info = parseInfo(line);
+            if (info) {
+              multiPvLines[info.multiPv - 1] = info;
+              if (info.multiPv === 1) {
+                latestEvaluation = info.score;
+                updateEvaluationUI();
+              }
+              updateLinesUI();
+              updateArrows();
+            }
+          }
+        };
+
+        sendToEngine("uci");
+        sendToEngine("setoption name MultiPV value 3");
+        sendToEngine("isready");
+      };
+
+      const evalFill = document.getElementById("evalFill");
+      const evalScore = document.getElementById("evalScore");
+      const bestMoveEl = document.getElementById("bestMove");
+      const bestEvalEl = document.getElementById("bestEval");
+      const accuracyStatus = document.getElementById("accuracyStatus");
+      const linesEl = document.getElementById("lines");
+      const depthInput = document.getElementById("depth");
+      const depthValue = document.getElementById("depthValue");
+      const accuracyToggle = document.getElementById("accuracyToggle");
+      const accuracyInput = document.getElementById("accuracy");
+      const accuracyValue = document.getElementById("accuracyValue");
+      const skillInput = document.getElementById("skill");
+      const skillValue = document.getElementById("skillValue");
+      const limitStrength = document.getElementById("limitStrength");
+      const eloInput = document.getElementById("elo");
+      const eloValue = document.getElementById("eloValue");
+      const styleSelect = document.getElementById("style");
+      const toggleArrows = document.getElementById("toggleArrows");
+      const serverToggle = document.getElementById("serverToggle");
+      const serverUrlInput = document.getElementById("serverUrl");
+      const flipBoard = document.getElementById("flipBoard");
+      const undoMove = document.getElementById("undoMove");
+      const resetBoard = document.getElementById("resetBoard");
+      const arrowLayer = document.getElementById("arrow-layer");
+      const promotionModal = document.getElementById("promotionModal");
+
+      const setWaitingUI = (message = "Analyzing...") => {
+        linesEl.innerHTML = `
+          <div class="line">
+            <strong>${message}</strong>
+            <span>--</span>
+          </div>
+        `;
+      };
+
+      const getAccuracySettings = () => {
+        const onlineBoost = navigator.onLine ? 2 : 0;
+        if (!accuracyToggle.checked) {
+          const baseDepth = Number(depthInput.value);
+          const baseSkill = Number(skillInput.value);
+          return {
+            depth: clamp(baseDepth + onlineBoost, 4, 20),
+            skill: clamp(baseSkill + onlineBoost, 0, 20),
+            limitStrength: limitStrength.checked,
+            elo: Number(eloInput.value),
+            accuracy: null,
+          };
+        }
+        const accuracy = clamp(Number(accuracyInput.value), 0, 100);
+        const depth = clamp(Math.max(4, Math.round(4 + (accuracy / 100) * 12)) + onlineBoost, 4, 20);
+        const skill = clamp(Math.round((accuracy / 100) * 18) + onlineBoost, 0, 20);
+        return {
+          depth,
+          skill,
+          limitStrength: false,
+          elo: 2000,
+          accuracy,
+        };
+      };
+
+      const updateAccuracyStatus = (settings) => {
+        const netLabel = navigator.onLine ? "Online" : "Offline";
+        if (!settings || settings.accuracy === null) {
+          accuracyStatus.textContent = `Manual · ${netLabel}`;
+          return;
+        }
+        accuracyStatus.textContent = `${settings.accuracy}% (D${settings.depth}/S${settings.skill}) · ${netLabel}`;
+      };
+
+      const applyAnalysisResult = (data) => {
+        multiPvLines = (data.lines || []).map((line) => ({
+          pv: line.pv || [],
+          score: line.score || { type: "cp", value: 0 },
+        }));
+        if (data.best) {
+          updateBestMove(data.best);
+        }
+        if (multiPvLines[0]) {
+          latestEvaluation = multiPvLines[0].score;
+          updateEvaluationUI();
+        }
+        updateLinesUI();
+        updateArrows();
+      };
+
+      const getServerUrl = () => {
+        const url = serverUrlInput.value.trim();
+        if (!url) return null;
+        return url.replace(/\/+$/, "");
+      };
+
+      const requestAnalysis = debounce(() => {
+        if (!game) return;
+        multiPvLines = [];
+        setWaitingUI();
+        const settings = getAccuracySettings();
+        updateAccuracyStatus(settings);
+
+        if (serverToggle.checked) {
+          const baseUrl = getServerUrl();
+          if (!baseUrl) {
+            setWaitingUI("Set server URL");
+            return;
+          }
+          fetch(`${baseUrl}/api/analyze`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fen: game.fen(),
+              depth: settings.depth,
+              multipv: 3,
+              skill: settings.skill,
+              limitStrength: settings.limitStrength,
+              elo: settings.elo,
+              style: styleSelect.value,
+            }),
+          })
+            .then((response) => response.json())
+            .then((data) => applyAnalysisResult(data))
+            .catch(() => setWaitingUI("Server offline"));
+          return;
+        }
+
+        if (!engineReady) return;
+        sendToEngine("stop");
+        sendToEngine(`setoption name Skill Level value ${settings.skill}`);
+        sendToEngine(`setoption name UCI_LimitStrength value ${settings.limitStrength ? "true" : "false"}`);
+        sendToEngine(`setoption name UCI_Elo value ${settings.elo}`);
+        const styleMap = {
+          passive: -20,
+          normal: 0,
+          aggressive: 20,
+        };
+        sendToEngine(`setoption name Contempt value ${styleMap[styleSelect.value] || 0}`);
+        sendToEngine(`position fen ${game.fen()}`);
+        sendToEngine(`go depth ${settings.depth}`);
+      }, 200);
+
+      const scheduleAnalysis = () => requestAnalysis();
+
+      const updateEvaluationUI = () => {
+        const percent = evalToPercent(latestEvaluation);
+        const display = evalToDisplay(latestEvaluation);
+        evalScore.textContent = display;
+        bestEvalEl.textContent = display;
+        evalFill.style.height = `${Math.abs(percent - 50) * 2}%`;
+        evalFill.style.bottom = percent >= 50 ? "50%" : `${percent}%`;
+      };
+
+      const updateBestMove = (uciMove) => {
+        if (!uciMove) return;
+        const san = uciToSan(game.fen(), uciMove);
+        bestMoveEl.textContent = san;
+        updateArrows(uciMove);
+      };
+
+      const updateLinesUI = () => {
+        linesEl.innerHTML = "";
+        const items = multiPvLines.filter(Boolean);
+        if (!items.length) {
+          setWaitingUI("Analyzing...");
+          return;
+        }
+        items.forEach((info) => {
+          const line = document.createElement("div");
+          line.className = "line";
+          const score = evalToDisplay(info.score);
+          const san = uciToSan(game.fen(), info.pv[0]);
+          line.innerHTML = `<strong>${san}</strong><span>${score}</span>`;
+          linesEl.appendChild(line);
+        });
+      };
+
+      const highlightSquares = (moves) => {
+        document.querySelectorAll(".square-highlight").forEach((sq) => {
+          sq.classList.remove("square-highlight", "secondary");
+        });
+        moves.forEach((move, index) => {
+          const from = document.querySelector(`.square-${move.from}`);
+          const to = document.querySelector(`.square-${move.to}`);
+          if (from) {
+            from.classList.add("square-highlight");
+            if (index > 0) from.classList.add("secondary");
+          }
+          if (to) {
+            to.classList.add("square-highlight");
+            if (index > 0) to.classList.add("secondary");
+          }
+        });
+      };
+
+      const updateArrows = (forcedBestMove) => {
+        arrowLayer.innerHTML = "";
+        if (!toggleArrows.checked || !board) return;
+        const boardElement = document.getElementById("board");
+        const rect = boardElement.getBoundingClientRect();
+        arrowLayer.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
+        arrowLayer.innerHTML = `
+          <defs>
+            <marker id="arrowHead" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(0, 122, 255, 0.9)"></path>
+            </marker>
+            <marker id="arrowHeadAlt" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(90, 200, 250, 0.8)"></path>
+            </marker>
+          </defs>
+        `;
+
+        const moves = [];
+        if (forcedBestMove) {
+          moves.push(forcedBestMove);
+        } else {
+          multiPvLines.forEach((info) => {
+            if (info && info.pv[0]) moves.push(info.pv[0]);
+          });
+        }
+
+        const arrowMoves = moves.slice(0, 3).map((uci) => ({
+          from: uci.substring(0, 2),
+          to: uci.substring(2, 4),
+        }));
+
+        highlightSquares(arrowMoves);
+
+        arrowMoves.forEach((move, index) => {
+          const from = squareCenter(move.from, rect);
+          const to = squareCenter(move.to, rect);
+          if (!from || !to) return;
+          const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          line.setAttribute("x1", from.x);
+          line.setAttribute("y1", from.y);
+          line.setAttribute("x2", to.x);
+          line.setAttribute("y2", to.y);
+          line.setAttribute("stroke", index === 0 ? "rgba(0, 122, 255, 0.9)" : "rgba(90, 200, 250, 0.7)");
+          line.setAttribute("stroke-width", index === 0 ? "8" : "6");
+          line.setAttribute("marker-end", index === 0 ? "url(#arrowHead)" : "url(#arrowHeadAlt)");
+          line.setAttribute("stroke-linecap", "round");
+          arrowLayer.appendChild(line);
+        });
+      };
+
+      const squareCenter = (square, rect) => {
+        if (!square) return null;
+        const file = files.indexOf(square[0]);
+        const rank = parseInt(square[1], 10) - 1;
+        const size = rect.width / 8;
+        const isWhite = currentOrientation === "white";
+        const x = (isWhite ? file : 7 - file) * size + size / 2;
+        const y = (isWhite ? 7 - rank : rank) * size + size / 2;
+        return { x, y };
+      };
+
+      const parseInfo = (line) => {
+        const depthMatch = line.match(/depth (\d+)/);
+        const multiPvMatch = line.match(/multipv (\d+)/);
+        const scoreMatch = line.match(/score (cp|mate) (-?\d+)/);
+        const pvMatch = line.match(/ pv ([a-h1-8 ]+)/);
+        if (!depthMatch || !multiPvMatch || !scoreMatch || !pvMatch) return null;
+        return {
+          depth: parseInt(depthMatch[1], 10),
+          multiPv: parseInt(multiPvMatch[1], 10),
+          score: {
+            type: scoreMatch[1],
+            value: parseInt(scoreMatch[2], 10),
+          },
+          pv: pvMatch[1].trim().split(" "),
+        };
+      };
+
+      const syncBoard = () => {
+        if (!board || !game) return;
+        board.position(game.fen(), false);
+        updateArrows();
+      };
+
+      const clearSelection = () => {
+        selectedSquare = null;
+        document.querySelectorAll(".square-selected").forEach((el) => {
+          el.classList.remove("square-selected");
+        });
+      };
+
+      const markSelected = (square) => {
+        clearSelection();
+        const el = document.querySelector(`.square-${square}`);
+        if (el) {
+          el.classList.add("square-selected");
+          selectedSquare = square;
+        }
+      };
+
+      const handleTapMove = (square) => {
+        if (!game) return;
+        const piece = game.get(square);
+        if (!selectedSquare) {
+          if (piece && piece.color === game.turn()) {
+            markSelected(square);
+          }
+          return;
+        }
+
+        if (selectedSquare === square) {
+          clearSelection();
+          return;
+        }
+
+        const moves = game.moves({ verbose: true });
+        const promotionMoves = moves.filter(
+          (move) => move.from === selectedSquare && move.to === square && move.promotion
+        );
+        if (promotionMoves.length) {
+          pendingPromotion = { from: selectedSquare, to: square };
+          showPromotionModal();
+          return;
+        }
+
+        const move = game.move({ from: selectedSquare, to: square, promotion: "q" });
+        if (!move) {
+          if (piece && piece.color === game.turn()) {
+            markSelected(square);
+          } else {
+            clearSelection();
+          }
+          return;
+        }
+
+        clearSelection();
+        syncBoard();
+        scheduleAnalysis();
+      };
+
+      const showPromotionModal = () => {
+        promotionModal.classList.add("active");
+      };
+
+      const hidePromotionModal = () => {
+        promotionModal.classList.remove("active");
+      };
+
+      promotionModal.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-piece]");
+        if (!button || !pendingPromotion) return;
+        const piece = button.getAttribute("data-piece");
+        const move = game.move({
+          from: pendingPromotion.from,
+          to: pendingPromotion.to,
+          promotion: piece,
+        });
+        pendingPromotion = null;
+        hidePromotionModal();
+        if (!move) return;
+        clearSelection();
+        syncBoard();
+        scheduleAnalysis();
+      });
+
+      depthInput.addEventListener("input", () => {
+        depthValue.textContent = depthInput.value;
+        scheduleAnalysis();
+      });
+
+      accuracyInput.addEventListener("input", () => {
+        accuracyValue.textContent = accuracyInput.value;
+        updateAccuracyStatus(getAccuracySettings());
+        scheduleAnalysis();
+      });
+
+      accuracyToggle.addEventListener("change", () => {
+        syncStrengthUI();
+        updateAccuracyStatus(getAccuracySettings());
+        scheduleAnalysis();
+      });
+
+      skillInput.addEventListener("input", () => {
+        skillValue.textContent = skillInput.value;
+        scheduleAnalysis();
+      });
+
+      const syncStrengthUI = () => {
+        const useAccuracy = accuracyToggle.checked;
+        const disabled = !limitStrength.checked;
+        depthInput.disabled = useAccuracy;
+        depthValue.style.opacity = useAccuracy ? "0.6" : "1";
+        skillInput.disabled = useAccuracy;
+        skillValue.style.opacity = useAccuracy ? "0.6" : "1";
+        limitStrength.disabled = useAccuracy;
+        eloInput.disabled = useAccuracy || disabled;
+        eloInput.style.opacity = useAccuracy || disabled ? "0.5" : "1";
+        eloValue.style.opacity = useAccuracy || disabled ? "0.6" : "1";
+        accuracyValue.style.opacity = accuracyToggle.checked ? "1" : "0.8";
+        serverUrlInput.disabled = !serverToggle.checked;
+      };
+
+      limitStrength.addEventListener("change", () => {
+        syncStrengthUI();
+        scheduleAnalysis();
+      });
+
+      eloInput.addEventListener("input", () => {
+        eloValue.textContent = eloInput.value;
+        scheduleAnalysis();
+      });
+
+      styleSelect.addEventListener("change", () => {
+        scheduleAnalysis();
+      });
+
+      serverToggle.addEventListener("change", () => {
+        localStorage.setItem("serverToggle", serverToggle.checked ? "1" : "0");
+        syncStrengthUI();
+        scheduleAnalysis();
+      });
+
+      serverUrlInput.addEventListener("input", () => {
+        localStorage.setItem("serverUrl", serverUrlInput.value.trim());
+      });
+
+      toggleArrows.addEventListener("change", () => {
+        updateArrows();
+      });
+
+      flipBoard.addEventListener("click", () => {
+        if (!board) return;
+        currentOrientation = currentOrientation === "white" ? "black" : "white";
+        board.orientation(currentOrientation);
+        updateArrows();
+      });
+
+      undoMove.addEventListener("click", () => {
+        if (!game) return;
+        game.undo();
+        syncBoard();
+        scheduleAnalysis();
+      });
+
+      resetBoard.addEventListener("click", () => {
+        if (!game) return;
+        game.reset();
+        syncBoard();
+        scheduleAnalysis();
+      });
+
+      window.addEventListener("resize", () => updateArrows());
+      window.addEventListener("online", () => {
+        updateAccuracyStatus(getAccuracySettings());
+        scheduleAnalysis();
+      });
+      window.addEventListener("offline", () => {
+        updateAccuracyStatus(getAccuracySettings());
+        scheduleAnalysis();
+      });
+
+      const initApp = async () => {
+        try {
+          await ensureLibs();
+        } catch (error) {
+          setWaitingUI("Libraries missing (place libs/*)");
+          return;
+        }
+        if (!window.Chess || !window.Chessboard) {
+          setWaitingUI("Loading libraries...");
+          setTimeout(initApp, 300);
+          return;
+        }
+
+        game = new Chess();
+        boardConfig = {
+          position: "start",
+          draggable: false,
+          pieceTheme,
+          onSnapEnd: () => {
+            if (!board) return;
+            board.position(game.fen());
+          },
+        };
+
+        board = Chessboard("board", boardConfig);
+        document.getElementById("board").addEventListener(
+          "click",
+          (event) => {
+            const squareEl = event.target.closest(".square-55d63, .square-a1");
+            if (!squareEl) return;
+            const squareClass = Array.from(squareEl.classList).find((cls) =>
+              /^square-[a-h][1-8]$/.test(cls)
+            );
+            if (!squareClass) return;
+            const square = squareClass.replace("square-", "");
+            handleTapMove(square);
+          },
+          { passive: true }
+        );
+        depthValue.textContent = depthInput.value;
+        accuracyValue.textContent = accuracyInput.value;
+        skillValue.textContent = skillInput.value;
+        eloValue.textContent = eloInput.value;
+        serverUrlInput.value = localStorage.getItem("serverUrl") || "";
+        serverToggle.checked = localStorage.getItem("serverToggle") === "1";
+        syncStrengthUI();
+        updateAccuracyStatus(getAccuracySettings());
+        updateEvaluationUI();
+        setWaitingUI("Ready");
+      await setupStockfish();
+      };
+
+      document.addEventListener("DOMContentLoaded", () => {
+        initApp();
+      });
+    </script>
+  </body>
+</html>
